@@ -1,0 +1,9 @@
+1.Lapisan mana yang paling saya pahami
+2.Lapisan mana yang masih saya campuradukkan
+3.Bukti apa yang membuat sebuah sistem layak disebut "cerdas" dan bertanggung jawab?
+JAWABAN
+1. Data Science
+2. Lapisan yang masih sering saya campuradukkan adalah AI, Machine Learning, dan sistem informasi cerdas. 
+Saya terkadang masih menganggap ketiganya sebagai hal yang sama karena sama-sama menggunakan teknologi untuk menghasilkan keputusan atau rekomendasi.
+3. Menurut saya, sebuah sistem dapat disebut cerdas apabila sistem tersebut mampu mengolah data, mengenali pola, melakukan analisis, serta memberikan prediksi atau rekomendasi yang dapat membantu pengguna dalam menyelesaikan masalah. 
+tetapi kecerdasan saja belum cukup. Sistem juga harus bertanggung jawab, yang dapat dibuktikan melalui penggunaan data yang tepat, transparansi dalam menghasilkan keputusan, perlindungan privasi pengguna,
