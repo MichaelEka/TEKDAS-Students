@@ -1,0 +1,108 @@
+﻿---
+title: "Analisis Churn Pelanggan E-Commerce"
+subtitle: "Laporan Proyek Referensi: Business Intelligence, Machine Learning, dan LLM"
+author: "Proyek Referensi Teknologi Cerdas"
+date: 2026-09-27
+lang: id
+format:
+  pdf:
+    documentclass: article
+    number-sections: true
+    geometry:
+      - margin=25mm
+    toc: true
+    colorlinks: true
+execute:
+  echo: false
+  warning: false
+---
+
+# Ringkasan
+
+Laporan ini mendokumentasikan proyek referensi pembelajaran yang menghubungkan data e-commerce dengan Business Intelligence (BI), prediksi churn menggunakan machine learning (ML), serta rancangan analis berbasis large language model (LLM). Dataset yang disertakan berbentuk simulasi bergaya Kaggle; hasilnya berguna untuk demonstrasi pipeline dan tidak boleh dianggap sebagai temuan tentang pelanggan bisnis nyata.
+
+Data pelanggan berjumlah 8.000 baris. Target `churned` memiliki proporsi positif 8,94%. Model Random Forest memperoleh accuracy 86,31%, precision churn 32,24%, recall churn 48,25%, F1 churn 38,66%, dan ROC-AUC 0,733 pada test set 1.600 pelanggan. Karena kelas churn minoritas, accuracy saja memberi gambaran yang kurang lengkap.
+
+# 1. Latar Belakang dan Tujuan
+
+Pelanggan yang berhenti bertransaksi dapat mengurangi pendapatan e-commerce. Tim bisnis dapat menggunakan ringkasan historis untuk memantau penjualan, sementara daftar pelanggan berisiko berpotensi membantu memprioritaskan pemeriksaan atau intervensi retensi. Tujuan artefak ini adalah menunjukkan alur data hingga aplikasi interaktif, bukan membuktikan efektivitas intervensi retensi.
+
+Pertanyaan rekayasa yang dibahas adalah: (1) bagaimana mengolah beberapa tabel e-commerce menjadi fitur pelanggan; (2) bagaimana kinerja baseline Random Forest pada klasifikasi churn; dan (3) bagaimana menyajikan prediksi beserta bukti kepada pengguna dashboard.
+
+# 2. Data dan Kualitas
+
+Proyek memuat empat berkas CSV: `customers.csv` (8.000 pelanggan), `orders.csv` (25.000 transaksi), `product_summary.csv` (140 ringkasan produk), dan `monthly_revenue.csv` (75 ringkasan bulan). Unit observasi model adalah pelanggan dan targetnya `churned`. Tanggal snapshot fitur adalah 1 April 2026.
+
+Sumber repository menyebut dataset sebagai data bergaya Kaggle, tetapi tidak mencantumkan URL dataset, versi sumber, lisensi, atau tanggal akses. Oleh sebab itu, laporan ini tidak mengklaim provenance atau izin penggunaan eksternal; rincian tersebut perlu dilengkapi sebelum distribusi atau penggunaan di luar latihan.
+
+| Pemeriksaan | Temuan |
+|---|---:|
+| Tingkat churn pelanggan | 8,94% |
+| Transaksi berstatus Delivered | 20.497 |
+| Pendapatan Delivered | US$2.585.126,50 |
+| Transaksi tanpa rating | 63,0% |
+| Tingkat retur dari tabel transaksi | 8,08% |
+| Rentang agregasi bulanan | 75 bulan |
+
+Pemeriksaan kualitas mengonfirmasi total revenue pada `monthly_revenue.csv` cocok dengan revenue transaksi Delivered. Karena agregat bulanan hanya merepresentasikan transaksi Delivered, kolom `return_rate` di berkas tersebut selalu nol. Analisis retur perlu memakai tabel transaksi, bukan angka agregat itu. Ini menunjukkan pentingnya memeriksa definisi metrik sebelum menarik kesimpulan BI.
+
+# 3. Metode
+
+## 3.1 Persiapan Fitur
+
+Pipeline memvalidasi kolom yang dibutuhkan, mengubah tanggal menjadi fitur `customer_tenure_days`, dan menghitung `orders_per_year`, `reviews_per_order`, serta `returns_per_order`. Fitur kategorikal meliputi negara, gender, tier keanggotaan, kategori pilihan, perangkat, metode pembayaran, dan kanal akuisisi. Fitur numerik mencakup umur, aktivitas pesanan, pengeluaran, jeda pembelian terakhir, ulasan, retur, wishlist, langganan newsletter, dan fitur turunan.
+
+Data dibagi secara stratified menjadi 80% train (6.400 pelanggan) dan 20% test (1.600 pelanggan), dengan random seed 42. Imputasi median untuk numerik, imputasi kategori paling sering, dan one-hot encoding berada di dalam pipeline Scikit-learn agar parameter preprocessing dipelajari dari data train.
+
+## 3.2 Model dan Evaluasi
+
+Model utama adalah Random Forest dengan 350 pohon, `min_samples_leaf=3`, `class_weight="balanced"`, seed 42, dan pemrosesan paralel. Artefak yang tersedia mencatat hasil model ini. Tidak tersedia hasil evaluasi baseline pembanding di `model_metrics.json`, sehingga laporan ini tidak menyatakan bahwa Random Forest mengungguli baseline.
+
+| Metrik pada test set | Hasil |
+|---|---:|
+| Accuracy | 0,863 |
+| Precision churn | 0,322 |
+| Recall churn | 0,483 |
+| F1 churn | 0,387 |
+| ROC-AUC | 0,733 |
+| Proporsi churn test | 8,94% |
+
+Matriks kebingungan (baris = label aktual; kolom = prediksi, urutan kelas 0 lalu 1):
+
+|  | Prediksi tidak churn | Prediksi churn |
+|---|---:|---:|
+| Aktual tidak churn | 1.312 | 145 |
+| Aktual churn | 74 | 69 |
+
+Model menemukan 69 dari 143 pelanggan churn pada test set, sementara 145 pelanggan non-churn ditandai sebagai churn. Pada ambang prediksi bawaan 0,5, precision yang rendah berarti sebagian besar kasus yang ditandai masih perlu diverifikasi. Penggunaan operasional harus mempertimbangkan biaya false positive dan false negative, menguji ambang keputusan, serta melibatkan peninjauan manusia.
+
+## 3.3 BI, Aplikasi, dan LLM
+
+Dashboard Streamlit menggabungkan empat area: penjelajahan tabel sumber, ringkasan pendapatan bulanan dan kategori, pemeriksaan prediksi churn pelanggan, serta tab analis LLM. Pengguna dapat memilih pelanggan dan mengubah threshold prediksi. Tab BI menggunakan transaksi Delivered untuk revenue dan menampilkan catatan kualitas saat return rate bulanan tidak bermakna.
+
+Modul `vai_analyst.py` membentuk prompt dengan profil pelanggan, probabilitas churn, pesanan terbaru, dan faktor penting model. Instruksi membatasi jawaban pada evidence yang diberikan, menyatakan bahwa prediksi bukan sebab yang terbukti, serta meminta kehati-hatian. Runtime default menggunakan Ollama dan model `llama3.2` dengan temperature 0,2.
+
+Artefak repository menjelaskan desain prompt dan pemanggilan LLM, tetapi tidak menyertakan kumpulan kasus uji atau penilaian keluaran LLM. Karena itu, mutu faktual, konsistensi, dan kegunaan rekomendasinya belum dapat dinyatakan terukur.
+
+# 4. Pembahasan dan Batasan
+
+Hasil menunjukkan kemampuan pemeringkatan churn moderat (ROC-AUC 0,733), tetapi recall 0,483 dan precision 0,322 membatasi pemakaian langsung untuk keputusan retensi. Skor probabilitas bukan bukti penyebab churn. Feature importance global juga bersifat deskriptif terhadap model dan tidak menunjukkan efek kausal.
+
+Keterbatasan utama adalah ketidakseimbangan target, tidak adanya pembandingan baseline dalam artefak metrik, belum adanya analisis threshold dan evaluasi per segmen, serta belum adanya uji kualitas keluaran LLM. Data bersifat simulasi/edukatif dan provenance lisensinya tidak dicatat di repository. Kinerja tidak dapat digeneralisasi ke populasi nyata. Sebelum penerapan nyata diperlukan validasi temporal atau eksternal, dokumentasi sumber dan izin, evaluasi fairness dan privasi, pemeriksaan drift, serta uji dengan pengguna.
+
+# 5. Reproduksibilitas
+
+Kode utama ada di folder `simulation/`: `data_prep.py`, `ml_model.py`, `vai_analyst.py`, dan `app.py`. Jalur eksekusi yang didokumentasikan adalah:
+
+```bash
+cd simulation
+python data_prep.py
+python ml_model.py
+streamlit run app.py
+```
+
+Untuk fitur LLM, siapkan Ollama secara terpisah, jalankan `ollama serve`, unduh model melalui `ollama pull llama3.2`, lalu jalankan aplikasi. Berkas yang dipakai untuk angka hasil laporan adalah `data_quality_report.json` dan `model_metrics.json` yang sudah tersedia dalam repository.
+
+# Kesimpulan
+
+Proyek ini mendemonstrasikan integrasi data preparation, BI, klasifikasi churn, prompt LLM berbasis evidence, dan dashboard Streamlit. Pada test set 1.600 pelanggan, Random Forest menghasilkan F1 churn 0,387 dan ROC-AUC 0,733; hasil tersebut cukup untuk bahan pembelajaran, tetapi belum menjadi bukti kesiapan operasional. Perhatian pada makna agregasi data serta keterbatasan prediksi dan LLM merupakan bagian penting dari penggunaan sistem secara bertanggung jawab.
