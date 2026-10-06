@@ -1,0 +1,150 @@
+﻿---
+title: "Laporan Proyek Teknologi Cerdas"
+subtitle: "Analisis Customer Churn dengan Business Intelligence dan Machine Learning"
+author: "Proyek Referensi TEKDAS-Students"
+date: "6 Oktober 2026"
+lang: id
+format:
+  pdf:
+    documentclass: scrreprt
+    number-sections: true
+    geometry:
+      - margin=25mm
+    toc: true
+    colorlinks: true
+execute:
+  echo: false
+  warning: false
+---
+
+# Ringkasan
+
+Laporan ini membahas implementasi proyek referensi pada repositori TEKDAS-Students. Sistem mengolah data e-commerce contoh untuk mempelajari prediksi pelanggan yang berhenti bertransaksi (*customer churn*), menyajikan ringkasan bisnis, dan menyediakan antarmuka analisis. Pipeline menggunakan empat tabel CSV, rekayasa fitur pelanggan, model Random Forest, serta aplikasi Streamlit. Integrasi LLM lokal melalui Ollama disediakan sebagai lapisan interpretasi opsional.
+
+Data berisi 8.000 pelanggan dan 25.000 transaksi. Pada test set berisi 1.600 pelanggan, model memperoleh accuracy 0,863, precision churn 0,322, recall churn 0,483, F1 churn 0,387, dan ROC-AUC 0,733. Hasil ini menunjukkan kemampuan pemeringkatan yang terbatas dan trade-off yang belum memadai untuk keputusan otomatis. Baseline pembanding, analisis threshold, audit error terperinci, evaluasi keluaran LLM, serta uji pengguna belum tercatat. Dengan demikian, laporan ini mendeskripsikan implementasi referensi dan hasil yang tersedia, bukan validasi kesiapan operasional.
+
+**Kata kunci:** customer churn, Random Forest, business intelligence, Streamlit, LLM.
+
+# Pendahuluan
+
+## Latar belakang
+
+Data pelanggan dan transaksi dapat membantu organisasi memahami perubahan perilaku pembelian. Ringkasan BI mendeskripsikan keadaan yang teramati, sedangkan model klasifikasi dapat memberi skor risiko churn untuk membantu menentukan pelanggan yang perlu ditinjau. Proyek ini merupakan bahan pembelajaran alur data ke aplikasi, bukan sistem keputusan retensi yang telah divalidasi pada organisasi nyata.
+
+## Tujuan dan ruang lingkup
+
+Tujuan proyek referensi adalah menunjukkan proses validasi data, rekayasa fitur, pemisahan train-test, pelatihan model, evaluasi klasifikasi, visualisasi BI, dan penyajian prediksi pada dashboard. Analisis berikut hanya menggunakan kode, dokumentasi, dan artefak yang tersedia dalam repositori. Workspace adaptasi dan proyek orisinal belum berisi dataset maupun eksperimen mahasiswa.
+
+## Pertanyaan proyek
+
+1. Bagaimana data sumber disiapkan menjadi fitur untuk klasifikasi churn?
+2. Bagaimana kinerja Random Forest pada test set yang disediakan?
+3. Bagaimana BI, prediksi ML, dan interpretasi LLM dihubungkan dalam aplikasi?
+4. Apa batas bukti yang tersedia untuk menilai kegunaan sistem?
+
+# Data dan kualitas
+
+## Sumber dan unit observasi
+
+Repositori menyediakan empat file CSV sintetis/bergaya Kaggle. Informasi lisensi, URL sumber eksternal, tanggal akses dataset, dan provenance rinci tidak ditetapkan dalam artefak yang tersedia; karena itu asal-usul dataset tidak dapat dipastikan dari laporan ini.
+
+| Berkas | Unit observasi | Fungsi |
+|---|---|---|
+| `customers.csv` | Pelanggan | Profil, fitur agregat, target `churned` |
+| `orders.csv` | Transaksi | Status transaksi, nilai, pengembalian, dan rating |
+| `product_summary.csv` | Produk | Agregat jumlah transaksi dan pendapatan |
+| `monthly_revenue.csv` | Bulan | Agregat pendapatan bulanan yang terkirim |
+
+## Ringkasan pemeriksaan
+
+| Pemeriksaan | Hasil |
+|---|---:|
+| Pelanggan | 8.000 baris |
+| Transaksi | 25.000 baris |
+| Produk | 140 baris |
+| Periode agregat bulanan | 75 baris |
+| Tingkat churn pelanggan | 8,94% |
+| Tingkat retur transaksi | 8,08% |
+| Rating transaksi yang kosong | 63,0% |
+| Transaksi berstatus Delivered | 20.497 |
+| Pendapatan Delivered | USD 2.585.126,50 |
+
+Pemeriksaan kualitas membandingkan total pendapatan agregat produk dengan transaksi non-cancelled dan total pendapatan bulanan dengan transaksi Delivered; keduanya cocok menurut laporan kualitas. Kolom `return_rate` bulanan selalu nol karena tabel bulanan hanya merangkum pesanan Delivered. Karena itu, tabel tersebut tidak sesuai untuk menyimpulkan tingkat retur; analisis retur perlu memakai `orders.csv`.
+
+Dokumentasi tidak melaporkan pemeriksaan duplikasi, rentang nilai, kategori tidak dikenal, atau audit kebocoran label secara menyeluruh. Target memiliki ketidakseimbangan kelas yang berarti: churn sekitar 8,94%.
+
+# Metode dan implementasi
+
+## Persiapan fitur
+
+`data_prep.py` memeriksa kolom wajib, mengubah tanggal, dan menghitung fitur seperti lama menjadi pelanggan, pesanan per tahun, ulasan per pesanan, serta retur per pesanan. Data dibagi secara stratified menjadi 6.400 baris train dan 1.600 baris test (80:20), dengan `random_state=42`. ID pelanggan tidak digunakan sebagai fitur.
+
+## Model
+
+Pipeline Scikit-learn mengimputasi nilai numerik dengan median serta nilai kategorikal dengan modus, lalu menerapkan one-hot encoding untuk kategori. Transformasi ditempatkan dalam pipeline agar parameter preprocessing dipelajari pada data pelatihan. Klasifikator yang dipakai ialah `RandomForestClassifier` dengan 350 pohon, `min_samples_leaf=3`, `class_weight="balanced"`, dan seed 42.
+
+## Evaluasi
+
+Model menghasilkan accuracy, precision, recall, F1 untuk kelas churn, ROC-AUC, dan confusion matrix. Angka yang tersedia berasal dari satu split test; tidak ada hasil cross-validation atau interval variasi. Tidak tersedia metrik baseline, sehingga peningkatan terhadap aturan sederhana belum dapat dinilai.
+
+## BI, LLM, dan aplikasi
+
+Dashboard Streamlit menampilkan inspeksi empat tabel, tren pendapatan terkirim, performa kategori, riwayat transaksi pelanggan, probabilitas churn, threshold yang dapat diubah, metrik model, serta feature importance. Prompt LLM dirancang membatasi jawaban pada profil, transaksi terbaru, probabilitas, dan faktor model yang diberikan. Prompt juga meminta model menyebutkan keterbatasan dan tidak menganggap prediksi sebagai sebab.
+
+Integrasi Ollama bersifat opsional. Repositori menyediakan kode dan mode pemeriksaan prompt, tetapi tidak menyertakan hasil evaluasi kualitas jawaban LLM. Karena itu, keberhasilan grounding maupun kegunaan rekomendasi belum dapat disimpulkan.
+
+# Hasil
+
+## Kinerja klasifikasi
+
+| Metrik | Hasil |
+|---|---:|
+| Accuracy | 0,863 |
+| Precision churn | 0,322 |
+| Recall churn | 0,483 |
+| F1 churn | 0,387 |
+| ROC-AUC | 0,733 |
+| Proporsi churn pada test set | 8,94% |
+
+Confusion matrix dengan urutan kelas negatif lalu positif adalah:
+
+|  | Prediksi tidak churn | Prediksi churn |
+|---|---:|---:|
+| Aktual tidak churn | 1.312 | 145 |
+| Aktual churn | 74 | 69 |
+
+Pada threshold bawaan, model menemukan 69 dari 143 pelanggan churn di test set dan melewatkan 74. Sebanyak 145 pelanggan yang tidak churn ditandai positif. Precision yang rendah berarti sebagian besar pelanggan yang ditandai berisiko tidak termasuk kelas churn aktual pada test set ini. Accuracy sendiri perlu dibaca bersama metrik kelas minoritas dan baseline.
+
+## Interpretasi
+
+ROC-AUC 0,733 menunjukkan pemisahan skor yang lebih baik daripada acak pada data uji ini, namun belum membuktikan bahwa skor terkalibrasi atau tindakan retensi akan efektif. Feature importance Random Forest bersifat asosiasional dan tidak menunjukkan sebab-akibat. Ambang keputusan dapat mengubah jumlah false positive dan false negative; evaluasi berbagai threshold dengan mempertimbangkan biaya intervensi perlu dilakukan sebelum penggunaan keputusan.
+
+# Diskusi, etika, dan batasan
+
+Proyek berhasil menyediakan contoh teknis alur end-to-end dan menjelaskan pentingnya semantik data agregat. Bukti kinerja terbatas pada satu split statis dan satu konfigurasi model. Dataset tidak memiliki provenance dan lisensi terverifikasi dalam berkas proyek. Tidak ada dokumentasi hasil uji pengguna, analisis subgroup/fairness, pemantauan drift, atau validasi di lingkungan nyata.
+
+Prediksi pelanggan dapat memengaruhi perlakuan yang diterima seseorang. Skor sebaiknya dipakai sebagai sinyal untuk pemeriksaan manusia, bukan keputusan otomatis atau klaim tentang niat pelanggan. Sebelum pemakaian nyata, perlu memastikan dasar penggunaan data, menguji dampak menurut kelompok yang relevan, membandingkan baseline, menelaah kesalahan dan threshold, serta membatasi akses terhadap data personal. Keluaran LLM harus ditinjau karena dapat menghasilkan rekomendasi yang tidak didukung bukti meskipun prompt telah memberi batasan.
+
+Folder `proyek_adaptasi/` masih memiliki penanda TODO dan data kosong. `proyek_orisinal/` juga berisi proposal serta log eksperimen berstatus TODO. Oleh sebab itu, tidak ada dasar untuk melaporkan hasil adaptasi atau kontribusi proyek orisinal.
+
+# Kesimpulan dan pekerjaan lanjutan
+
+Repositori menyediakan implementasi referensi edukasional BI, Random Forest untuk churn, prompt LLM opsional, dan dashboard Streamlit. Pada test set yang tersedia, model mencapai ROC-AUC 0,733 dan F1 churn 0,387 dengan recall 0,483. Confusion matrix menunjukkan 74 kasus churn terlewat serta 145 false positive. Hasil ini berguna sebagai titik awal eksperimen, tetapi belum cukup untuk mengklaim manfaat bisnis atau kesiapan deployment.
+
+Langkah lanjutan yang disarankan adalah mencatat provenance dan lisensi data, membangun baseline yang eksplisit, menguji threshold dan variasi split, menganalisis kesalahan, mengevaluasi kalibrasi dan fairness, serta menilai keluaran LLM dengan kasus uji yang dapat diaudit. Untuk jalur Adapt atau Create, mahasiswa perlu mengisi workspace terkait dan melaporkan hasil eksperimen yang benar-benar dijalankan.
+
+# Reproduksibilitas
+
+Dari folder `simulation/`, siapkan dependensi yang tercantum pada `requirements.txt`, lalu jalankan:
+
+```bash
+python data_prep.py
+python ml_model.py
+streamlit run app.py
+```
+
+LLM memerlukan Ollama dan model lokal yang sesuai; jalur ini opsional. Artefak metrik dan kualitas yang diringkas dalam laporan berada di `simulation/model_metrics.json` dan `simulation/data_quality_report.json`.
+
+# Pernyataan penggunaan AI
+
+Laporan ini disusun dengan bantuan asisten AI melalui pembacaan berkas repositori. Angka hasil dirujuk dari artefak JSON yang tersedia; penafsiran dan penggunaan laporan tetap perlu ditinjau oleh pemilik proyek. Tidak ada eksperimen baru yang diklaim dilakukan untuk menyusun laporan ini.
