@@ -1,0 +1,16 @@
+{
+  "source_file": "dataset.csv",
+  "rows": 4424,
+  "feature_count": 34,
+  "target": "Target",
+  "classes": {
+    "Graduate": 2209,
+    "Dropout": 1421,
+    "Enrolled": 794
+  },
+  "missing_values": {},
+  "duplicate_rows": 0,
+  "train_rows": 3539,
+  "test_rows": 885,
+  "split_seed": 42
+}
